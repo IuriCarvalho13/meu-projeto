@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Funcionários - Área Restrita</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fa;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #004085;
+      margin-bottom: 20px;
+    }
+    #searchInput {
+      width: 300px;
+      padding: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      margin-left: 10px;
+      padding: 9px 15px;
+      font-size: 14px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #addBtn {
+      background-color: #28a745;
+      color: white;
+    }
+    #addBtn:hover {
+      background-color: #218838;
+    }
+    #updateBtn {
+      background-color: #ffc107;
+      color: black;
+    }
+    #updateBtn:hover {
+      background-color: #e0a800;
+    }
+    #deleteBtn {
+      background-color: #dc3545;
+      color: white;
+    }
+    #deleteBtn:hover {
+      background-color: #c82333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .loading {
+      font-style: italic;
+      color: #666;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Lista de Funcionários</h1>
+
+  <input type="text" id="searchInput" placeholder="Pesquisar por nome..." />
+
+  <button id="addBtn">Adicionar</button>
+  <button id="updateBtn">Atualizar</button>
+  <button id="deleteBtn">Excluir</button>
+
+  <table id="funcionariosTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Cargo</th>
+        <th>Email</th>
+        <th>CPF</th>
+        <th>Data Nascimento</th>
+        <th>Telefone</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="7" class="loading">Carregando funcionários...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const tbody = document.querySelector('#funcionariosTable tbody');
+
+    async function carregarFuncionarios(search = '') {
+      tbody.innerHTML = '<tr><td colspan="7" class="loading">Carregando funcionários...</td></tr>';
+
+      try {
+        const response = await fetch(`http://localhost:3000/funcionarios?search=${encodeURIComponent(search)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          tbody.innerHTML = `<tr><td colspan="7" class="error">Erro ao carregar funcionários</td></tr>`;
+          return;
+        }
+
+        if (data.funcionarios.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7">Nenhum funcionário encontrado.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = '';
+        data.funcionarios.forEach(func => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${func.id}</td>
+            <td>${func.nome}</td>
+            <td>${func.cargo}</td>
+            <td>${func.email}</td>
+            <td>${func.cpf || ''}</td>
+            <td>${func.dataNascimento || ''}</td>
+            <td>${func.telefone || ''}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="error">Erro ao carregar funcionários</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    // Busca ao digitar
+    searchInput.addEventListener('input', () => {
+      carregarFuncionarios(searchInput.value);
+    });
+
+    // Função para adicionar funcionário
+    async function adicionarFuncionario() {
+      const nome = prompt('Nome do funcionário:');
+      if (!nome) return alert('Nome é obrigatório.');
+
+      const cargo = prompt('Cargo do funcionário:');
+      if (!cargo) return alert('Cargo é obrigatório.');
+
+      const email = prompt('Email do funcionário:');
+      if (!email) return alert('Email é obrigatório.');
+
+      const cpf = prompt('CPF (opcional):');
+      const dataNascimento = prompt('Data de nascimento (YYYY-MM-DD, opcional):');
+      const telefone = prompt('Telefone (opcional):');
+
+      try {
+        const res = await fetch('http://localhost:3000/funcionarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cargo, email, cpf, dataNascimento, telefone })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert('Funcionário adicionado com sucesso!');
+          carregarFuncionarios(searchInput.value);
+        } else {
+          alert(data.message || 'Erro ao adicionar funcionário');
+        }
+      } catch (err) {
+        alert('Erro na comunicação com o servidor.');
+        console.error(err);
+      }
+    }
+
+    // Função para atualizar funcionário
+    async function atualizarFuncionario() {
+      const id = prompt('Digite o ID do funcionário a atualizar:');
+      if (!id) return alert('ID é obrigatório.');
+
+      const nome = prompt('Novo nome (deixe em branco para não alterar):');
+      const cargo = prompt('Novo cargo (deixe em branco para não alterar):');
+      const email = prompt('Novo email (deixe em branco para não alterar):');
+      const cpf = prompt('Novo CPF (deixe em branco para não alterar):');
+      const dataNascimento = prompt('Nova data de nascimento (YYYY-MM-DD, deixe em branco para não alterar):');
+      const telefone = prompt('Novo telefone (deixe em branco para não alterar):');
+
+      const dados = {};
+      if (nome) dados.nome = nome;
+      if (cargo) dados.cargo = cargo;
+      if (email) dados.email = email;
+      if (cpf) dados.cpf = cpf;
+      if (dataNascimento) dados.dataNascimento = dataNascimento;
+      if (telefone) dados.telefone = telefone;
+
+      if (Object.keys(dados).length === 0) {
+        return alert('Nenhum dado para atualizar.');
+      }
+
+      try {
+        const res = await fetch(`http://localhost:3000/funcionarios/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert('Funcionário atualizado com sucesso!');
+          carregarFuncionarios(searchInput.value);
+        } else {
+          alert(data.message || 'Erro ao atualizar funcionário');
+        }
+      } catch (err) {
+        alert('Erro na comunicação com o servidor.');
+        console.error(err);
+      }
+    }
+
+    // Função para excluir funcionário
+    async function excluirFuncionario() {
+      const id = prompt('Digite o ID do funcionário a excluir:');
+      if (!id) return alert('ID é obrigatório.');
+
+      if (!confirm('Tem certeza que deseja excluir o funcionário com ID ' + id + '?')) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/funcionarios/${id}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert('Funcionário excluído com sucesso!');
+          carregarFuncionarios(searchInput.value);
+        } else {
+          alert(data.message || 'Erro ao excluir funcionário');
+        }
+      } catch (err) {
+        alert('Erro na comunicação com o servidor.');
+        console.error(err);
+      }
+    }
+
+    // Eventos dos botões
+    document.getElementById('addBtn').addEventListener('click', adicionarFuncionario);
+    document.getElementById('updateBtn').addEventListener('click', atualizarFuncionario);
+    document.getElementById('deleteBtn').addEventListener('click', excluirFuncionario);
+
+    // Carregar funcionários na inicialização
+    carregarFuncionarios();
+  </script>
+</body>
+</html>
